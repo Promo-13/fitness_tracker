@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { parseDateKeyToLocalDate } from "@/lib/date"
-import type { WorkoutSession } from "@/app/page"
+import type { WorkoutSession } from "@/lib/types"
 
 interface ProgressViewProps {
   workoutSessions: WorkoutSession[]
@@ -27,7 +27,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
       const exercise = session.exercises.find((e) => e.name === exerciseName)!
       return {
         date: session.date,
-        day: session.day,
+        dayName: session.dayName,
         weight: exercise.weight,
         reps: exercise.reps,
         completed: exercise.completed,
@@ -65,7 +65,8 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
 
     const workoutTypeCount = workoutSessions.reduce(
       (acc, session) => {
-        acc[session.day] = (acc[session.day] || 0) + 1
+        const k = session.dayName
+        acc[k] = (acc[k] || 0) + 1
         return acc
       },
       {} as Record<string, number>,
@@ -86,6 +87,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Progress Tracking</h2>
 
+      {/* Overall Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -124,6 +126,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
         </Card>
       </div>
 
+      {/* Exercise Progress */}
       {allExercises.length > 0 && (
         <Card>
           <CardHeader>
@@ -152,9 +155,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
                         <div className="text-sm font-medium">
                           {parseDateKeyToLocalDate(item.date).toLocaleDateString()}
                         </div>
-                        <Badge variant="outline" className="capitalize">
-                          {item.day} day
-                        </Badge>
+                        <Badge variant="outline">{item.dayName}</Badge>
                         <Badge variant="outline">
                           {item.weight}kg × {item.reps}
                         </Badge>

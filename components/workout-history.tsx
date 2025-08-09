@@ -4,19 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Dumbbell, CheckCircle, XCircle } from "lucide-react"
 import { parseDateKeyToLocalDate } from "@/lib/date"
-import type { WorkoutSession } from "@/app/page"
+import { getBadgeClasses } from "@/lib/colors"
+import type { WorkoutSession } from "@/lib/types"
 
 interface WorkoutHistoryProps {
   workoutSessions: WorkoutSession[]
-}
-
-const dayColors = {
-  push: "bg-red-100 text-red-800",
-  pull: "bg-blue-100 text-blue-800",
-  legs: "bg-green-100 text-green-800",
-  arms: "bg-purple-100 text-purple-800",
-  abs: "bg-orange-100 text-orange-800",
-  cardio: "bg-pink-100 text-pink-800",
 }
 
 export function WorkoutHistory({ workoutSessions }: WorkoutHistoryProps) {
@@ -53,7 +45,7 @@ export function WorkoutHistory({ workoutSessions }: WorkoutHistoryProps) {
               <div key={session.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Badge className={`capitalize ${dayColors[session.day]}`}>{session.day} Day</Badge>
+                    <Badge className={`${getBadgeClasses(session.dayColor)} capitalize`}>{session.dayName}</Badge>
                     <h3 className="font-semibold">
                       {localDate.toLocaleDateString("en-US", {
                         weekday: "long",
