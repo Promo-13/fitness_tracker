@@ -31,7 +31,6 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
         weight: exercise.weight,
         reps: exercise.reps,
         completed: exercise.completed,
-        notes: exercise.notes,
       }
     })
   }

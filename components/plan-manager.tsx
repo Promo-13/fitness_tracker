@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Settings2 } from "lucide-react"
@@ -23,7 +22,6 @@ function newExercise(): TemplateExercise {
     name: "",
     sets: 3,
     reps: "8-12",
-    notes: "",
   }
 }
 
@@ -181,7 +179,7 @@ export function PlanManager({ templates, onChange }: Props) {
                   )}
                   {selected.exercises.map((ex) => (
                     <div key={ex.id} className="rounded-lg border p-4 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div className="md:col-span-2 space-y-2">
                           <Label>Exercise Name</Label>
                           <Input
@@ -207,15 +205,6 @@ export function PlanManager({ templates, onChange }: Props) {
                             value={ex.reps}
                             onChange={(e) => updateExercise(selected.id, ex.id, { reps: e.target.value })}
                             placeholder="e.g., 8-12"
-                          />
-                        </div>
-                        <div className="md:col-span-2 space-y-2">
-                          <Label>Notes</Label>
-                          <Textarea
-                            rows={1}
-                            value={ex.notes || ""}
-                            onChange={(e) => updateExercise(selected.id, ex.id, { notes: e.target.value })}
-                            placeholder="Optional notes"
                           />
                         </div>
                       </div>

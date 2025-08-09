@@ -5,7 +5,6 @@ export type TemplateExercise = {
   name: string
   sets: number
   reps: string
-  notes?: string
 }
 
 export type DayTemplate = {
@@ -22,7 +21,6 @@ export type Exercise = {
   reps: string
   weight: number
   completed: boolean
-  notes?: string
 }
 
 export type WorkoutSession = {

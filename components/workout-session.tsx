@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Clock, Save, TrendingUp } from "lucide-react"
@@ -40,7 +39,6 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
         reps: t.reps,
         weight: lastEx?.weight || 0,
         completed: false,
-        notes: t.notes,
       }
     })
     setExercises(initial)
@@ -170,16 +168,6 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
                       disabled={exercise.completed}
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Notes (optional)</Label>
-                  <Textarea
-                    placeholder="How did this feel? Form notes?"
-                    value={exercise.notes || ""}
-                    onChange={(e) => updateExercise(exercise.id, "notes", e.target.value)}
-                    rows={2}
-                    disabled={exercise.completed}
-                  />
                 </div>
               </CardContent>
             </Card>
