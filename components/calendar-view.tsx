@@ -125,7 +125,7 @@ export function CalendarView({ workoutSessions }: CalendarViewProps) {
                   )}
                 >
                   <div className="text-sm font-medium">{day}</div>
-                  {workout && <div className="text-xs mt-1">{workout.dayName}</div>}
+                  {workout && <div className="text-xs mt-1 capitalize">{workout.dayName}</div>}
                 </div>
               )
             })}
@@ -142,7 +142,7 @@ export function CalendarView({ workoutSessions }: CalendarViewProps) {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {Object.entries(workoutTypeCounts).map(([name, count]) => (
               <div key={name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <span className="font-medium">{name}</span>
+                <span className="font-medium capitalize">{name}</span>
                 <Badge variant="secondary">{count}</Badge>
               </div>
             ))}
@@ -161,7 +161,7 @@ export function CalendarView({ workoutSessions }: CalendarViewProps) {
               {legend.map((item) => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className={`w-6 h-6 border-2 rounded ${getCalendarClasses(item.color as any)}`}></div>
-                  <span className="text-sm">{item.name}</span>
+                  <span className="text-sm capitalize">{item.name}</span>
                 </div>
               ))}
               <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ import { WorkoutHistory } from "@/components/workout-history"
 import { PlanManager } from "@/components/plan-manager"
 import { parseDateKeyToLocalDate } from "@/lib/date"
 import type { DayTemplate, WorkoutSession } from "@/lib/types"
+import { UnitSelect } from "@/components/unit-select"
 
 const LS_SESSIONS = "fitness-workout-sessions"
 const LS_TEMPLATES = "fitness-day-templates"
@@ -211,6 +212,9 @@ export default function FitnessTracker() {
                 Plan
               </Button>
             </nav>
+            <div className="ml-2">
+              <UnitSelect />
+            </div>
           </div>
         </div>
       </header>

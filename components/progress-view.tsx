@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { parseDateKeyToLocalDate } from "@/lib/date"
+import { useUnit } from "@/hooks/use-preferences"
+import { formatWeight } from "@/lib/units"
+import { ExerciseLineChart } from "@/components/charts/exercise-line-chart"
 import type { WorkoutSession } from "@/lib/types"
 
 interface ProgressViewProps {
@@ -13,74 +16,69 @@ interface ProgressViewProps {
 
 export function ProgressView({ workoutSessions }: ProgressViewProps) {
   const [selectedExercise, setSelectedExercise] = useState<string>("")
+  const { unit } = useUnit()
 
-  const allExercises = Array.from(new Set(workoutSessions.flatMap((s) => s.exercises.map((e) => e.name)))).filter(
-    (name) => name.trim() !== "",
+  const allExercises = useMemo(
+    () =>
+      Array.from(new Set(workoutSessions.flatMap((s) => s.exercises.map((e) => e.name)))).filter(
+        (name) => name.trim() !== "",
+      ),
+    [workoutSessions],
   )
 
-  const getExerciseProgress = (exerciseName: string) => {
-    const exerciseSessions = workoutSessions
-      .filter((s) => s.exercises.some((e) => e.name === exerciseName))
-      .sort((a, b) => parseDateKeyToLocalDate(a.date).getTime() - parseDateKeyToLocalDate(b.date).getTime())
+  const sessionsFor = useMemo(
+    () => (exerciseName: string) =>
+      workoutSessions
+        .filter((s) => s.exercises.some((e) => e.name === exerciseName))
+        .sort((a, b) => parseDateKeyToLocalDate(a.date).getTime() - parseDateKeyToLocalDate(b.date).getTime()),
+    [workoutSessions],
+  )
 
-    return exerciseSessions.map((session) => {
-      const exercise = session.exercises.find((e) => e.name === exerciseName)!
-      return {
-        date: session.date,
-        dayName: session.dayName,
-        weight: exercise.weight,
-        reps: exercise.reps,
-        completed: exercise.completed,
-      }
-    })
-  }
+  const selectedSessions = selectedExercise ? sessionsFor(selectedExercise) : []
 
-  const getProgressTrend = (exerciseName: string) => {
-    const progress = getExerciseProgress(exerciseName)
-    if (progress.length < 2) return "neutral"
+  const lastCompleted = useMemo(() => {
+    if (!selectedExercise) return null
+    const latest = [...selectedSessions]
+      .reverse()
+      .map((s) => s.exercises.find((e) => e.name === selectedExercise && e.completed)?.weight)
+      .find((w) => typeof w === "number")
+    return typeof latest === "number" ? latest : null
+  }, [selectedExercise, selectedSessions])
 
-    const recent = progress.slice(-3).filter((p) => p.completed)
-    const older = progress.slice(-6, -3).filter((p) => p.completed)
+  const best = useMemo(() => {
+    if (!selectedExercise) return null
+    const weights = selectedSessions
+      .map((s) => s.exercises.find((e) => e.name === selectedExercise && e.completed)?.weight || 0)
+      .filter((w) => w > 0)
+    return weights.length ? Math.max(...weights) : null
+  }, [selectedExercise, selectedSessions])
 
-    if (recent.length === 0 || older.length === 0) return "neutral"
+  const recentEntries = useMemo(() => {
+    if (!selectedExercise) return []
+    // Newest first so it appears right under the header
+    return [...selectedSessions]
+      .reverse()
+      .slice(0, 10)
+      .map((session) => {
+        const exercise = session.exercises.find((e) => e.name === selectedExercise)!
+        return {
+          date: session.date,
+          dayName: session.dayName,
+          weight: exercise.weight,
+          reps: exercise.reps,
+          completed: exercise.completed,
+        }
+      })
+  }, [selectedExercise, selectedSessions])
 
-    const recentAvg = recent.reduce((sum, p) => sum + p.weight, 0) / recent.length
-    const olderAvg = older.reduce((sum, p) => sum + p.weight, 0) / older.length
-
-    if (recentAvg > olderAvg) return "up"
-    if (recentAvg < olderAvg) return "down"
-    return "neutral"
-  }
-
-  const getOverallStats = () => {
-    const totalWorkouts = workoutSessions.length
-    const completedWorkouts = workoutSessions.filter((s) => s.completed).length
-    const withDuration = workoutSessions.filter((s) => s.duration)
-    const avgWorkoutDuration = withDuration.reduce((sum, s) => sum + (s.duration || 0), 0) / (withDuration.length || 1)
-
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const thisMonthWorkouts = workoutSessions.filter((s) => parseDateKeyToLocalDate(s.date) >= monthStart).length
-
-    const workoutTypeCount = workoutSessions.reduce(
-      (acc, session) => {
-        const k = session.dayName
-        acc[k] = (acc[k] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-    return {
-      totalWorkouts,
-      completedWorkouts,
-      avgWorkoutDuration: Math.round(avgWorkoutDuration || 0),
-      thisMonthWorkouts,
-      workoutTypeCount,
-    }
-  }
-
-  const stats = getOverallStats()
+  // Overall stats (unchanged)
+  const totalWorkouts = workoutSessions.length
+  const completedWorkouts = workoutSessions.filter((s) => s.completed).length
+  const withDuration = workoutSessions.filter((s) => s.duration)
+  const avgWorkoutDuration = withDuration.reduce((sum, s) => sum + (s.duration || 0), 0) / (withDuration.length || 1)
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const thisMonthWorkouts = workoutSessions.filter((s) => parseDateKeyToLocalDate(s.date) >= monthStart).length
 
   return (
     <div className="space-y-6">
@@ -93,8 +91,8 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
             <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalWorkouts}</div>
-            <p className="text-xs text-muted-foreground">{stats.completedWorkouts} completed</p>
+            <div className="text-2xl font-bold">{totalWorkouts}</div>
+            <p className="text-xs text-muted-foreground">{completedWorkouts} completed</p>
           </CardContent>
         </Card>
         <Card>
@@ -102,7 +100,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
             <CardTitle className="text-sm font-medium">This Month</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.thisMonthWorkouts}</div>
+            <div className="text-2xl font-bold">{thisMonthWorkouts}</div>
           </CardContent>
         </Card>
         <Card>
@@ -110,7 +108,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
             <CardTitle className="text-sm font-medium">Avg Duration</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.avgWorkoutDuration}m</div>
+            <div className="text-2xl font-bold">{Math.round(avgWorkoutDuration || 0)}m</div>
           </CardContent>
         </Card>
         <Card>
@@ -118,9 +116,7 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
             <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round((stats.completedWorkouts / (stats.totalWorkouts || 1)) * 100)}%
-            </div>
+            <div className="text-2xl font-bold">{Math.round((completedWorkouts / (totalWorkouts || 1)) * 100)}%</div>
           </CardContent>
         </Card>
       </div>
@@ -128,35 +124,55 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
       {/* Exercise Progress */}
       {allExercises.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Exercise Progress</CardTitle>
-            <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Select an exercise to track" />
-              </SelectTrigger>
-              <SelectContent>
-                {allExercises.map((exercise) => (
-                  <SelectItem key={exercise} value={exercise}>
-                    {exercise}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
+          <CardHeader className="pb-3 pt-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Exercise Progress</CardTitle>
+              <div className="w-full sm:w-72">
+                <Select value={selectedExercise} onValueChange={setSelectedExercise}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select an exercise" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allExercises.map((exercise) => (
+                      <SelectItem key={exercise} value={exercise}>
+                        {exercise}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {selectedExercise && (
-              <div className="space-y-2">
-                {getExerciseProgress(selectedExercise)
-                  .slice(-10)
-                  .map((item, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex items-center gap-4">
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="secondary">Exercise: {selectedExercise}</Badge>
+                <Badge variant="outline">Sessions: {selectedSessions.length}</Badge>
+                <Badge variant="outline">Last: {lastCompleted != null ? formatWeight(lastCompleted, unit) : "—"}</Badge>
+                <Badge variant="outline">Best: {best != null ? formatWeight(best, unit) : "—"}</Badge>
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            {!selectedExercise ? (
+              <div className="h-[100px] w-full flex items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                Choose an exercise to view its recent sessions
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* RECENT ENTRIES AT THE TOP */}
+                <div className="space-y-1">
+                  {recentEntries.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted/70 rounded-md">
+                      <div className="flex flex-wrap items-center gap-3">
                         <div className="text-sm font-medium">
                           {parseDateKeyToLocalDate(item.date).toLocaleDateString()}
                         </div>
-                        <Badge variant="outline">{item.dayName}</Badge>
+                        <Badge variant="outline" className="capitalize">
+                          {item.dayName}
+                        </Badge>
                         <Badge variant="outline">
-                          {item.weight}kg × {item.reps}
+                          {formatWeight(item.weight, unit)} × {item.reps}
                         </Badge>
                         <Badge variant={item.completed ? "default" : "secondary"}>
                           {item.completed ? "Completed" : "Skipped"}
@@ -164,6 +180,15 @@ export function ProgressView({ workoutSessions }: ProgressViewProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* COMPACT CHART BELOW THE LIST */}
+                <ExerciseLineChart
+                  sessions={workoutSessions}
+                  exerciseName={selectedExercise}
+                  unit={unit}
+                  height={140}
+                />
               </div>
             )}
           </CardContent>

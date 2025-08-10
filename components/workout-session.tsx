@@ -10,6 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Clock, Save, TrendingUp } from "lucide-react"
 import { dateKeyLocal } from "@/lib/date"
 import type { DayTemplate, Exercise, WorkoutSession as WorkoutSessionType } from "@/lib/types"
+import { useUnit } from "@/hooks/use-preferences"
+import { displayFromKg, kgFromDisplay, formatWeight } from "@/lib/units"
+import { PRBadge } from "@/components/pr-badge"
+import { RestTimer } from "@/components/rest-timer"
 
 interface WorkoutSessionProps {
   dayId: string
@@ -22,6 +26,8 @@ interface WorkoutSessionProps {
 export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previousSessions }: WorkoutSessionProps) {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [startTime] = useState(new Date())
+  const { unit } = useUnit()
+  const [restStartSignal, setRestStartSignal] = useState(0)
 
   useEffect(() => {
     // Initialize from template and last session weights
@@ -61,6 +67,13 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
     return { lastWeight: le.weight, suggestedWeight: le.weight + bump }
   }
 
+  const getPreviousMaxKg = (exerciseName: string) => {
+    const all = previousSessions
+      .filter((s) => s.exercises.some((e) => e.name === exerciseName && e.completed))
+      .map((s) => s.exercises.find((e) => e.name === exerciseName)!.weight)
+    return all.length ? Math.max(...all) : 0
+  }
+
   const saveWorkout = () => {
     const endTime = new Date()
     const duration = Math.round((endTime.getTime() - startTime.getTime()) / 60000)
@@ -83,6 +96,19 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
   const completedCount = useMemo(() => exercises.filter((ex) => ex.completed).length, [exercises])
   const totalCount = exercises.length
 
+  const repeatLast = () => {
+    setExercises((prev) =>
+      prev.map((ex) => {
+        const last =
+          [...previousSessions]
+            .filter((s) => s.dayId === dayId)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .map((s) => s.exercises.find((e) => e.name === ex.name)?.weight || 0)[0] || 0
+        return { ...ex, weight: last }
+      }),
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -104,10 +130,15 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
             </div>
           </div>
         </div>
-        <Button onClick={saveWorkout} disabled={completedCount === 0}>
-          <Save className="h-4 w-4 mr-2" />
-          Save Workout
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={repeatLast}>
+            Repeat Last
+          </Button>
+          <Button onClick={saveWorkout} disabled={completedCount === 0}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Workout
+          </Button>
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -122,6 +153,8 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
       <div className="space-y-4">
         {exercises.map((exercise) => {
           const suggestion = getProgressSuggestion(exercise.name)
+          const prevMax = getPreviousMaxKg(exercise.name)
+          const isPR = (exercise.weight || 0) > prevMax
           return (
             <Card key={exercise.id} className={exercise.completed ? "opacity-75" : ""}>
               <CardHeader>
@@ -129,7 +162,10 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
                   <div className="flex items-center gap-3">
                     <Checkbox
                       checked={exercise.completed}
-                      onCheckedChange={(checked) => updateExercise(exercise.id, "completed", checked)}
+                      onCheckedChange={(checked) => {
+                        updateExercise(exercise.id, "completed", checked)
+                        if (checked) setRestStartSignal((n) => n + 1)
+                      }}
                     />
                     <div>
                       <CardTitle className={`text-lg ${exercise.completed ? "line-through" : ""}`}>
@@ -140,23 +176,30 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
                       </p>
                     </div>
                   </div>
-                  {suggestion && (
-                    <Badge variant="outline" className="text-xs">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Last: {suggestion.lastWeight}kg → Try: {suggestion.suggestedWeight}kg
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <PRBadge show={isPR} />
+                    {suggestion && (
+                      <Badge variant="outline" className="text-xs">
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        Last: {formatWeight(suggestion.lastWeight, unit)} → Try:{" "}
+                        {formatWeight(suggestion.suggestedWeight, unit)}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Weight (kg)</Label>
+                    <Label>Weight ({unit})</Label>
                     <Input
                       type="number"
                       step="0.5"
-                      value={exercise.weight || ""}
-                      onChange={(e) => updateExercise(exercise.id, "weight", Number.parseFloat(e.target.value) || 0)}
+                      value={displayFromKg(exercise.weight || 0, unit) || ""}
+                      onChange={(e) => {
+                        const v = Number.parseFloat(e.target.value)
+                        updateExercise(exercise.id, "weight", Number.isFinite(v) ? kgFromDisplay(v, unit) : 0)
+                      }}
                       disabled={exercise.completed}
                     />
                   </div>
@@ -181,6 +224,9 @@ export function WorkoutSession({ dayId, template, onWorkoutSaved, onBack, previo
           <Save className="h-4 w-4 mr-2" />
           Save {template.name} Workout
         </Button>
+      </div>
+      <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 z-20">
+        <RestTimer startSignal={restStartSignal} />
       </div>
     </div>
   )

@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Dumbbell, CheckCircle, XCircle } from "lucide-react"
+import { Clock, Dumbbell, CheckCircle, XCircle, Trophy } from "lucide-react"
 import { parseDateKeyToLocalDate } from "@/lib/date"
 import { getBadgeClasses } from "@/lib/colors"
+import { useUnit } from "@/hooks/use-preferences"
+import { formatWeight } from "@/lib/units"
 import type { WorkoutSession } from "@/lib/types"
 
 interface WorkoutHistoryProps {
@@ -12,6 +14,17 @@ interface WorkoutHistoryProps {
 }
 
 export function WorkoutHistory({ workoutSessions }: WorkoutHistoryProps) {
+  const { unit } = useUnit()
+
+  const prs = new Map<string, number>()
+  for (const s of workoutSessions) {
+    for (const ex of s.exercises) {
+      if (!ex.completed) continue
+      const max = prs.get(ex.name) ?? 0
+      prs.set(ex.name, Math.max(max, ex.weight || 0))
+    }
+  }
+
   if (workoutSessions.length === 0) {
     return (
       <Card>
@@ -78,9 +91,15 @@ export function WorkoutHistory({ workoutSessions }: WorkoutHistoryProps) {
                       <div className={`font-medium text-sm ${exercise.completed ? "" : "line-through"}`}>
                         {exercise.name}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {exercise.weight}kg × {exercise.reps}
-                        {exercise.completed && <span className="text-green-600 ml-2">✓</span>}
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                        <span>
+                          {formatWeight(exercise.weight, unit)} × {exercise.reps}
+                        </span>
+                        {exercise.completed && exercise.weight >= (prs.get(exercise.name) ?? 0) && (
+                          <span className="inline-flex items-center text-amber-600">
+                            <Trophy className="h-3.5 w-3.5 mr-1" /> PR
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
